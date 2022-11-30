@@ -6,6 +6,7 @@ from tkinter import filedialog
 import cv2
 import skimage.feature as feature
 import numpy as np
+import pandas as pd
 from collections import Counter
 from sklearn.cluster import KMeans
 
@@ -15,8 +16,16 @@ root.title("GLCM and HSV")
 blank_img = ImageTk.PhotoImage(Image.open('blank_icon.jpg').resize((150,150)))
 path = None
 path3 = None
+contrast = None
+dissimilarity = None
+homogeneity = None
+energy = None
+correlation = None
+asm = None
+dom_color = None
 
 ocean_fish_dataset = IntVar(value=1)
+color_cluster = StringVar(value="2")
 
 contrast_0 = StringVar()
 contrast_45 = StringVar()
@@ -57,7 +66,7 @@ feature_extraction_button = Button(content, text="Feature Extraction", height=2,
 reset_button = Button(content, text="Reset", height=2, bg="#ccdbfd")
 ocean_fish_dataset_checkbutton = Checkbutton(content, text = 'Image from ocean fish dataset', variable = ocean_fish_dataset, onvalue = 1, offvalue = 0)
 dom_color_label = Label(content, text="Dominant Color for HSV:")
-dom_color_entry = Entry(content)
+dom_color_entry = Entry(content, textvariable=color_cluster)
 
 grayscale_img = Label(content, image=blank_img)
 grayscale_img_label = Label(content, text="Grayscale Image")
@@ -137,7 +146,16 @@ def select_image():
 
 
 def feature_extraction():
-    # gray = cv2.cvtColor(cv2.imread(path), cv2.COLOR_BGR2GRAY)
+    global contrast
+    global dissimilarity
+    global homogeneity
+    global energy
+    global correlation
+    global asm
+    global dom_color
+
+
+
     img0=cv2.imread(path) 
     if ocean_fish_dataset.get() == 1 and path3 != None:
         # segmentation
@@ -151,11 +169,18 @@ def feature_extraction():
         img0p[:,:,2]=img0p[:,:,2]*mask_img2
         img0 = img0p
     
+    try:
+        int(color_cluster.get())
+        print("ini angka")
+    except ValueError:
+        showwarning(message="Mohon gunakan hanya angka pada clustering")
+        return
+    
     gray = cv2.cvtColor(img0, cv2.COLOR_BGR2GRAY)
 
     hsv = cv2.cvtColor(img0, cv2.COLOR_BGR2HSV)
     image = hsv.reshape((hsv.shape[0] * hsv.shape[1], 3))
-    clt = KMeans(n_clusters=2)
+    clt = KMeans(n_clusters=int(color_cluster.get()))
     labels = clt.fit_predict((image))
     label_counts = Counter(labels)
     dom_color = clt.cluster_centers_[label_counts.most_common(1)[0][0]]
@@ -164,8 +189,6 @@ def feature_extraction():
     saturation.set(dom_color[1])
     value.set(dom_color[2])
 
-    # image_spot = img0
-    # gray = cv2.cvtColor(image_spot, cv2.COLOR_BGR2GRAY)
     graycom = feature.graycomatrix(gray, [1], [0, np.pi/4, np.pi/2, 3*np.pi/4], levels=256)
     contrast = feature.graycoprops(graycom, 'contrast')
     dissimilarity = feature.graycoprops(graycom, 'dissimilarity')
@@ -212,6 +235,8 @@ def feature_extraction():
     hsv_img.image = hsv
 
 def reset_image():
+    global path
+    global path3
     path = None
     path3 = None
     ori_img.configure(image=blank_img)
@@ -221,15 +246,67 @@ def reset_image():
     hsv_img.configure(image=blank_img)
     hsv_img.image = blank_img
 
+    contrast_0.set("")
+    contrast_45.set("")
+    contrast_90.set("")
+    contrast_135.set("")
+    dissimilarity_0.set("")
+    dissimilarity_45.set("")
+    dissimilarity_90.set("")
+    dissimilarity_135.set("")
+    homogeneity_0.set("")
+    homogeneity_45.set("")
+    homogeneity_90.set("")
+    homogeneity_135.set("")
+    energy_0.set("")
+    energy_45.set("")
+    energy_90.set("")
+    energy_135.set("")
+    correlation_0.set("")
+    correlation_45.set("")
+    correlation_90.set("")
+    correlation_135.set("")
+    asm_0.set("")
+    asm_45.set("")
+    asm_90.set("")
+    asm_135.set("")
+    hue.set("")
+    saturation.set("")
+    value.set("")
+
+def export_data():
+    # creating the DataFrame
+    cars_data = pd.DataFrame({
+                            'Contrast': {0:contrast[0][0], 45:contrast[0][1], 90:contrast[0][2], 135:contrast[0][3]},
+                            'Dissimilarity': {0:dissimilarity[0][0], 45:dissimilarity[0][1], 90:dissimilarity[0][2], 135:dissimilarity[0][3]},
+                            'Homogeneity': {0:homogeneity[0][0], 45:homogeneity[0][1], 90:homogeneity[0][2], 135:homogeneity[0][3]},
+                            'Energy': {0:energy[0][0], 45:energy[0][1], 90:energy[0][2], 135:energy[0][3]},  
+                            'Correlation': {0:correlation[0][0], 45:correlation[0][1], 90:correlation[0][2], 135:correlation[0][3]},
+                            'ASM': {0:asm[0][0], 45:asm[0][1], 90:asm[0][2], 135:asm[0][3]},
+                            ' ': {0:' ', 45:' ', 90:' ', 135:' '},
+                            'Hue': {0: dom_color[0]},
+                            'Saturation': {0: dom_color[1]},
+                            'Value': {0: dom_color[2]}
+                            })
+    
+    # writing to Excel
+    datatoexcel = pd.ExcelWriter('CarsData1.xlsx')
+    
+    # write DataFrame to excel
+    cars_data.to_excel(datatoexcel)
+    
+    # save the excel
+    datatoexcel.save()
+    print('DataFrame is written to Excel File successfully.')
+
 select_img_button.configure(command=select_image)
 feature_extraction_button.configure(command=feature_extraction)
 reset_button.configure(command=reset_image)
+export_data_button.configure(command=export_data)
 
 for child in content.winfo_children(): 
     child.grid_configure(sticky=(N,W,E,S))
 
-# for child in content.winfo_children(): 
-#     child.configure(bg="#abc4ff")
 
 content.grid(column=0, row=0, ipadx=20, ipady=20)
 
